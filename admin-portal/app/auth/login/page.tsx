@@ -2,13 +2,12 @@
 
 import { Suspense, useState } from 'react'
 import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 
 function LoginForm() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const redirectTo = searchParams.get('redirectTo') || '/dashboard'
 
@@ -32,8 +31,10 @@ function LoginForm() {
     if (authError) {
       setError(authError.message)
     } else {
-      router.push(redirectTo)
-      router.refresh()
+      // Hard redirect ensures the session cookie is sent with the next request
+      // before the middleware runs its auth check — avoids the race condition
+      // where router.push() navigates before the cookie is propagated.
+      window.location.href = redirectTo
     }
   }
 
