@@ -1,12 +1,11 @@
-import { type NextRequest } from 'next/server'
-import { updateSession } from '@/lib/supabase/middleware'
+import { NextResponse, type NextRequest } from 'next/server'
 
-// Middleware only refreshes the Supabase session token.
-// Auth redirects are handled by server components (Node.js runtime)
-// because Edge runtime has limitations reading Supabase cookies reliably.
-export async function middleware(request: NextRequest) {
-  const { supabaseResponse } = await updateSession(request)
-  return supabaseResponse
+// Auth is handled by the admin layout (reads cc-session cookie + validates
+// with raw fetch). The middleware no longer needs to manage sessions —
+// @supabase/ssr's updateSession() was clearing cookies on every request
+// because it couldn't parse our session, causing logout on form submits.
+export function middleware(request: NextRequest) {
+  return NextResponse.next()
 }
 
 export const config = {
