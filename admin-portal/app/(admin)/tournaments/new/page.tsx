@@ -84,75 +84,28 @@ export default function NewTournamentPage() {
     setLoading(true)
     setServerError(null)
 
-    const supabase = createClient()
-
-    // Check if user has available credits
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    if (!user) {
-      router.push('/auth/login')
-      return
-    }
-
-    // Find an available purchase
-    const { data: purchases } = await supabase
-      .from('tournament_purchases')
-      .select('*')
-      .eq('admin_id', user.id)
-      .eq('status', 'paid')
-      .gt('tournaments_remaining', 0)
-      .order('created_at', { ascending: true })
-      .limit(1)
-
-    if (!purchases || purchases.length === 0) {
-      setServerError(
-        'No tournament credits available. Please purchase credits from the Billing page.'
-      )
-      setLoading(false)
-      return
-    }
-
-    const purchase = purchases[0]
-
     try {
-      // Create the tournament
-      const { data: tournament, error: tournamentError } = await supabase
-        .from('tournaments')
-        .insert({
-          created_by: user.id,
+      // Use server API route — avoids RLS issues with browser client auth
+      const res = await fetch('/api/tournaments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           name: form.name.trim(),
           club_name: form.club_name.trim(),
           club_location: form.club_location.trim() || null,
           tournament_date: form.tournament_date,
-          status: 'draft',
           timer_duration_seconds: parseInt(form.timer_duration_seconds),
           timer_extension_seconds: parseInt(form.timer_extension_seconds),
           timer_extension_threshold_seconds: parseInt(form.timer_extension_threshold_seconds),
           min_bid_increment_cents: parseInt(form.min_bid_increment_cents),
           auction_order_type: form.auction_order_type,
-          current_auction_session_id: null,
-        })
-        .select('id')
-        .single()
-
-      if (tournamentError) throw new Error(tournamentError.message)
-
-      // Decrement the credit
-      await supabase
-        .from('tournament_purchases')
-        .update({ tournaments_remaining: purchase.tournaments_remaining - 1 })
-        .eq('id', purchase.id)
-
-      // Add owner as tournament admin
-      await supabase.from('tournament_admins').insert({
-        tournament_id: tournament.id,
-        admin_id: user.id,
-        role: 'owner',
+        }),
       })
 
-      router.push(`/tournaments/${tournament.id}`)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to create tournament')
+
+      router.push(`/tournaments/${data.id}`)
     } catch (e) {
       setServerError(e instanceof Error ? e.message : 'Failed to create tournament')
       setLoading(false)
