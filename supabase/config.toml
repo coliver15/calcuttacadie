@@ -1,0 +1,66 @@
+# Supabase project configuration
+# https://supabase.com/docs/guides/cli/config
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+api_url = "http://localhost"
+
+[inbucket]
+enabled = true
+port = 54324
+smtp_port = 54325
+pop3_port = 54326
+
+[storage]
+enabled = true
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["https://calcutta.app"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+enable_signup = true
+enable_anonymous_sign_ins = false
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = true
+
+[realtime]
+enabled = true
+# Realtime is used for live auction bidding channels
+# channel pattern: auction:{tournament_id}
+
+[functions.validate-access-code]
+verify_jwt = false   # Public endpoint — validates code and issues its own JWT
+
+[functions.place-bid]
+verify_jwt = true    # Must have valid team JWT
+
+[functions.manage-auction]
+verify_jwt = true    # Must have valid admin JWT
+
+[functions.handle-buyback]
+verify_jwt = true
+
+[functions.manage-ownership-group]
+verify_jwt = true
+
+[functions.stripe-webhook]
+verify_jwt = false   # Stripe signs its own payloads
