@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
         },
         // Write cookies directly onto the redirect response
         // so the browser receives Set-Cookie headers
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: { name: string; value: string; options: Record<string, unknown> }[]) {
           cookiesToSet.forEach(({ name, value, options }) => {
             response.cookies.set(name, value, options as Parameters<typeof response.cookies.set>[2])
           })
