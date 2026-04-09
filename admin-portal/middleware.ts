@@ -5,7 +5,8 @@ import { updateSession } from '@/lib/supabase/middleware'
 // Auth redirects are handled by server components (Node.js runtime)
 // because Edge runtime has limitations reading Supabase cookies reliably.
 export async function middleware(request: NextRequest) {
-  return await updateSession(request)
+  const { supabaseResponse } = await updateSession(request)
+  return supabaseResponse
 }
 
 export const config = {
