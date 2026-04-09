@@ -2,10 +2,12 @@
 
 export type TournamentStatus =
   | 'draft'
-  | 'published'
-  | 'auction_open'
+  | 'setup'
+  | 'ready'
+  | 'auction_live'
   | 'auction_complete'
-  | 'results_final'
+  | 'results_pending'
+  | 'complete'
 
 export type AuctionOrderType = 'random' | 'manual' | 'handicap_desc' | 'handicap_asc'
 
