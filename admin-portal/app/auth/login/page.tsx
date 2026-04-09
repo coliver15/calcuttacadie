@@ -1,52 +1,15 @@
-'use client'
-
-import { Suspense, useState } from 'react'
+import { Suspense } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
-import Button from '@/components/ui/Button'
-import Input from '@/components/ui/Input'
+import { loginAction } from '@/app/auth/actions'
 
-function LoginForm() {
-  const searchParams = useSearchParams()
-  const redirectTo = searchParams.get('redirectTo') || '/dashboard'
+interface Props {
+  searchParams: Promise<{ error?: string; redirectTo?: string }>
+}
 
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setError(null)
-    setLoading(true)
-
-    // POST to server-side login route — session cookie is set in the
-    // HTTP response so the server can read it immediately (no browser
-    // client encoding mismatch)
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email.trim(), password, redirectTo }),
-      redirect: 'manual', // Handle redirect ourselves
-    })
-
-    if (res.status === 0 || res.type === 'opaqueredirect') {
-      // Redirect happened — follow it with a hard navigation so
-      // the session cookies are included in the next request
-      window.location.href = redirectTo
-      return
-    }
-
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({ error: 'Login failed' }))
-      setError(data.error || 'Login failed')
-      setLoading(false)
-      return
-    }
-
-    // Successful — navigate to dashboard
-    window.location.href = redirectTo
-  }
+async function LoginForm({ searchParams }: Props) {
+  const params = await searchParams
+  const error = params.error
+  const redirectTo = params.redirectTo || '/dashboard'
 
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
@@ -62,14 +25,44 @@ function LoginForm() {
 
           {error && (
             <div className="bg-red-950 border border-red-800 text-red-300 rounded-lg p-3 mb-4 text-sm">
-              {error}
+              {decodeURIComponent(error)}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <Input label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} required />
-            <Input label="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} required />
-            <Button type="submit" loading={loading} className="w-full">Sign In</Button>
+          <form action={loginAction} className="space-y-4">
+            {/* Pass redirectTo through the form */}
+            <input type="hidden" name="redirectTo" value={redirectTo} />
+
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1.5">Email</label>
+              <input
+                name="email"
+                type="email"
+                required
+                autoComplete="email"
+                className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500"
+                placeholder="you@example.com"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1.5">Password</label>
+              <input
+                name="password"
+                type="password"
+                required
+                autoComplete="current-password"
+                className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500"
+                placeholder="Your password"
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg px-4 py-2.5 transition-colors"
+            >
+              Sign In
+            </button>
           </form>
 
           <p className="text-center text-slate-400 text-sm mt-6">
@@ -82,14 +75,14 @@ function LoginForm() {
   )
 }
 
-export default function LoginPage() {
+export default function LoginPage({ searchParams }: Props) {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="text-white">Loading...</div>
       </div>
     }>
-      <LoginForm />
+      <LoginForm searchParams={searchParams} />
     </Suspense>
   )
 }
