@@ -3,7 +3,6 @@
 import { Suspense, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 
@@ -21,21 +20,32 @@ function LoginForm() {
     setError(null)
     setLoading(true)
 
-    const supabase = createClient()
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
+    // POST to server-side login route — session cookie is set in the
+    // HTTP response so the server can read it immediately (no browser
+    // client encoding mismatch)
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.trim(), password, redirectTo }),
+      redirect: 'manual', // Handle redirect ourselves
     })
 
-    setLoading(false)
-    if (authError) {
-      setError(authError.message)
-    } else {
-      // Hard redirect ensures the session cookie is sent with the next request
-      // before the middleware runs its auth check — avoids the race condition
-      // where router.push() navigates before the cookie is propagated.
+    if (res.status === 0 || res.type === 'opaqueredirect') {
+      // Redirect happened — follow it with a hard navigation so
+      // the session cookies are included in the next request
       window.location.href = redirectTo
+      return
     }
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({ error: 'Login failed' }))
+      setError(data.error || 'Login failed')
+      setLoading(false)
+      return
+    }
+
+    // Successful — navigate to dashboard
+    window.location.href = redirectTo
   }
 
   return (
@@ -74,7 +84,11 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-slate-950 flex items-center justify-center"><div className="text-white">Loading...</div></div>}>
+    <Suspense fallback={
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-white">Loading...</div>
+      </div>
+    }>
       <LoginForm />
     </Suspense>
   )
