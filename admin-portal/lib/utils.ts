@@ -38,7 +38,10 @@ export function generateAccessCode(): string {
 
 export function formatHandicap(index: number | null): string {
   if (index === null) return '—'
-  return index >= 0 ? `+${index.toFixed(1)}` : index.toFixed(1)
+  // Display as-is — plus (+) handicaps are negative numbers stored by the admin
+  // A value of 5.0 → '5.0', a value of -2.0 → '+2.0' (plus handicap)
+  if (index < 0) return `+${Math.abs(index).toFixed(1)}`
+  return index.toFixed(1)
 }
 
 export function formatTimerSeconds(seconds: number): string {

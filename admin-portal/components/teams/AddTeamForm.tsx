@@ -3,14 +3,12 @@
 import { useState } from 'react'
 import Button from '@/components/ui/Button'
 import Input, { Select } from '@/components/ui/Input'
-import { generateAccessCode } from '@/lib/utils'
-import { createClient } from '@/lib/supabase/client'
-import type { Flight } from '@/types/database'
+import type { Flight, Team } from '@/types/database'
 
 interface AddTeamFormProps {
   tournamentId: string
   flights: Flight[]
-  onSuccess: () => void
+  onSuccess: (team: Team) => void
   onCancel?: () => void
 }
 
@@ -83,39 +81,25 @@ export default function AddTeamForm({
     setServerError(null)
 
     try {
-      const supabase = createClient()
-
-      // Determine next auction_order
-      const { count } = await supabase
-        .from('teams')
-        .select('*', { count: 'exact', head: true })
-        .eq('tournament_id', tournamentId)
-
-      const accessCode = generateAccessCode()
-
-      const { error } = await supabase.from('teams').insert({
-        tournament_id: tournamentId,
-        flight_id: form.flight_id || null,
-        player1_name: form.player1_name.trim(),
-        player2_name: form.player2_name.trim(),
-        player1_handicap_index: form.player1_handicap_index
-          ? parseFloat(form.player1_handicap_index)
-          : null,
-        player2_handicap_index: form.player2_handicap_index
-          ? parseFloat(form.player2_handicap_index)
-          : null,
-        access_code: accessCode,
-        auction_order: (count ?? 0) + 1,
-        auction_status: 'pending',
-        final_sale_price_cents: null,
-        final_place: null,
-        winnings_cents: null,
+      const res = await fetch('/api/teams', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tournamentId,
+          flight_id: form.flight_id || null,
+          player1_name: form.player1_name.trim(),
+          player2_name: form.player2_name.trim(),
+          player1_handicap_index: form.player1_handicap_index
+            ? parseFloat(form.player1_handicap_index) : null,
+          player2_handicap_index: form.player2_handicap_index
+            ? parseFloat(form.player2_handicap_index) : null,
+        }),
       })
-
-      if (error) throw new Error(error.message)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to add team')
 
       setForm(initialState)
-      onSuccess()
+      onSuccess(data as Team)
     } catch (e) {
       setServerError(e instanceof Error ? e.message : 'Failed to add team')
     } finally {
