@@ -1,6 +1,6 @@
 {
-  "installCommand": "npm install --prefix admin-portal",
-  "buildCommand": "npm run build --prefix admin-portal",
+  "installCommand": "cd admin-portal && npm install",
+  "buildCommand": "cd admin-portal && npm run build",
   "outputDirectory": "admin-portal/.next",
-  "devCommand": "npm run dev --prefix admin-portal"
+  "devCommand": "cd admin-portal && npm run dev"
 }
