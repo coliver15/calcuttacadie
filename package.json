@@ -2,10 +2,9 @@
   "name": "calcutta-caddie",
   "private": true,
   "scripts": {
-    "postinstall": "cd admin-portal && npm install",
-    "build": "cd admin-portal && npm run build",
-    "dev": "cd admin-portal && npm run dev",
-    "start": "cd admin-portal && npm run start"
+    "build": "next build",
+    "dev": "next dev",
+    "start": "next start"
   },
   "dependencies": {
     "next": "14.2.0"
