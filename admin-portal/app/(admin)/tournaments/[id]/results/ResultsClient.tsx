@@ -4,7 +4,6 @@ import { useState } from 'react'
 import Link from 'next/link'
 import Button from '@/components/ui/Button'
 import { Select } from '@/components/ui/Input'
-import { createClient } from '@/lib/supabase/client'
 import { formatCents } from '@/lib/utils'
 import type {
   Tournament,
@@ -37,6 +36,7 @@ export default function ResultsClient({
   payoutTiers,
   ownerships: initialOwnerships,
 }: ResultsClientProps) {
+  const tournamentId = tournament.id
   const [placements, setPlacements] = useState<PlacementState>(() => {
     const init: PlacementState = {}
     teams.forEach((t) => {
@@ -83,31 +83,20 @@ export default function ResultsClient({
     setError(null)
     setSaveSuccess(false)
 
-    const supabase = createClient()
-
-    // Build updates
-    const updates = teams
+    const placements_payload = teams
       .filter((t) => placements[t.id] !== undefined)
-      .map((t) => {
-        const place = placements[t.id] ? parseInt(placements[t.id]) : null
-        const winnings = place !== null ? calculateWinnings(t, place) : null
-        return { id: t.id, final_place: place, winnings_cents: winnings }
-      })
+      .map((t) => ({ teamId: t.id, place: placements[t.id] ? parseInt(placements[t.id]) : null }))
 
-    for (const update of updates) {
-      const { error: updateError } = await supabase
-        .from('teams')
-        .update({
-          final_place: update.final_place,
-          winnings_cents: update.winnings_cents,
-        })
-        .eq('id', update.id)
-
-      if (updateError) {
-        setError(updateError.message)
-        setSaving(false)
-        return
-      }
+    const res = await fetch('/api/results', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tournamentId, placements: placements_payload }),
+    })
+    if (!res.ok) {
+      const d = await res.json()
+      setError(d.error || 'Failed to save placements')
+      setSaving(false)
+      return
     }
 
     setSaving(false)
@@ -116,23 +105,15 @@ export default function ResultsClient({
   }
 
   async function togglePaymentConfirmed(ownership: Ownership) {
-    const supabase = createClient()
     const confirmed = !ownership.payment_confirmed
-    const { error: updateError } = await supabase
-      .from('ownerships')
-      .update({
-        payment_confirmed: confirmed,
-        payment_confirmed_at: confirmed ? new Date().toISOString() : null,
-      })
-      .eq('id', ownership.id)
-
-    if (!updateError) {
+    const res = await fetch(`/api/teams/${ownership.team_id}/payment`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ownershipId: ownership.id, confirmed, tournamentId }),
+    })
+    if (res.ok) {
       setOwnerships((prev) =>
-        prev.map((o) =>
-          o.id === ownership.id
-            ? { ...o, payment_confirmed: confirmed }
-            : o
-        )
+        prev.map((o) => o.id === ownership.id ? { ...o, payment_confirmed: confirmed } : o)
       )
     }
   }

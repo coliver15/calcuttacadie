@@ -4,7 +4,6 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
-import { createClient } from '@/lib/supabase/client'
 
 interface NavItem {
   label: string
@@ -50,9 +49,8 @@ export default function AdminNav({ userEmail }: AdminNavProps) {
 
   async function handleSignOut() {
     setSigningOut(true)
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push('/auth/login')
+    await fetch('/api/auth/logout', { method: 'POST' })
+    window.location.href = '/auth/login'
     router.refresh()
   }
 

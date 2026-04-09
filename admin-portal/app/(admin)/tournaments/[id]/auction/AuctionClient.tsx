@@ -38,6 +38,19 @@ export default function AuctionClient({
   const [session, setSession] = useState<AuctionSession | null>(initialSession)
   const [bids, setBids] = useState<BidWithTeam[]>(initialBids as BidWithTeam[])
   const [connected, setConnected] = useState(false)
+
+  const tournamentId = tournament.id
+
+  async function auctionApi(action: string, extra: Record<string, unknown> = {}) {
+    const res = await fetch(`/api/auction/${tournamentId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, ...extra }),
+    })
+    if (!res.ok) { const d = await res.json(); throw new Error(d.error || action + ' failed') }
+    return res.json()
+  }
+
   const supabaseRef = useRef(createClient())
 
   const flightMap = new Map(flights.map((f) => [f.id, f]))
@@ -157,40 +170,12 @@ export default function AuctionClient({
 
     if (!nextTeam) throw new Error('No teams available to auction')
 
-    // Create auction session
-    const { data: newSession, error } = await supabase
-      .from('auction_sessions')
-      .insert({
-        tournament_id: tournament.id,
-        team_id: nextTeam.id,
-        status: 'active',
-        opening_bid_cents: openingBidCents,
-        current_bid_cents: openingBidCents,
-        winning_bidder_team_id: null,
-        timer_started_at: new Date().toISOString(),
-        timer_duration_seconds: tournament.timer_duration_seconds,
-        extension_count: 0,
-        sold_at: null,
-      })
-      .select('*')
-      .single()
-
-    if (error) throw new Error(error.message)
-
-    // Update tournament's current session
-    await supabase
-      .from('tournaments')
-      .update({
-        current_auction_session_id: newSession.id,
-        status: 'auction_live',
-      })
-      .eq('id', tournament.id)
-
-    // Update team status
-    await supabase
-      .from('teams')
-      .update({ auction_status: 'active' })
-      .eq('id', nextTeam.id)
+    // Create auction session via server API
+    const newSession = await auctionApi('create_and_start', {
+      teamId: nextTeam.id,
+      openingBidCents,
+      timerDurationSeconds: tournament.timer_duration_seconds,
+    })
 
     setSession(newSession as AuctionSession)
     setTeams((prev) =>
@@ -219,34 +204,13 @@ export default function AuctionClient({
     const supabase = supabaseRef.current
     const soldAt = new Date().toISOString()
 
-    // Mark session as sold
-    await supabase
-      .from('auction_sessions')
-      .update({ status: 'sold', sold_at: soldAt })
-      .eq('id', session.id)
-
-    // Update team
-    await supabase
-      .from('teams')
-      .update({
-        auction_status: 'sold',
-        final_sale_price_cents: session.current_bid_cents,
-      })
-      .eq('id', currentTeam.id)
-
-    // Create ownership record
-    if (session.winning_bidder_team_id) {
-      await supabase.from('ownerships').insert({
-        auction_session_id: session.id,
-        team_id: currentTeam.id,
-        owner_team_id: session.winning_bidder_team_id,
-        ownership_type: 'full',
-        ownership_percentage: 100,
-        amount_paid_cents: session.current_bid_cents,
-        payment_confirmed: false,
-        payment_confirmed_at: null,
-      })
-    }
+    // Record sale via server API
+    await auctionApi('record_sale', {
+      sessionId: session.id,
+      teamId: currentTeam.id,
+      salePriceCents: session.current_bid_cents,
+      winnerTeamId: session.winning_bidder_team_id,
+    })
 
     setTeams((prev) =>
       prev.map((t) =>
@@ -281,15 +245,7 @@ export default function AuctionClient({
 
     const supabase = supabaseRef.current
 
-    await supabase
-      .from('auction_sessions')
-      .update({ status: 'passed' })
-      .eq('id', session.id)
-
-    await supabase
-      .from('teams')
-      .update({ auction_status: 'passed' })
-      .eq('id', currentTeam.id)
+    await auctionApi('record_pass', { sessionId: session.id, teamId: currentTeam.id })
 
     setTeams((prev) =>
       prev.map((t) =>

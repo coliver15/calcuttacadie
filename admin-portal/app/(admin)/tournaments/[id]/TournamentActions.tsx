@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Button from '@/components/ui/Button'
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/Modal'
-import { createClient } from '@/lib/supabase/client'
 import type { Tournament, TournamentStatus } from '@/types/database'
 
 interface TournamentActionsProps {
@@ -43,15 +42,14 @@ export default function TournamentActions({ tournament }: TournamentActionsProps
     if (!nextStatus) return
     setLoading(true)
     setError(null)
-
-    const supabase = createClient()
-    const { error: updateError } = await supabase
-      .from('tournaments')
-      .update({ status: nextStatus })
-      .eq('id', tournament.id)
-
-    if (updateError) {
-      setError(updateError.message)
+    const res = await fetch(`/api/tournaments/${tournament.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: nextStatus }),
+    })
+    if (!res.ok) {
+      const d = await res.json()
+      setError(d.error || 'Failed to update status')
     } else {
       router.refresh()
     }
@@ -60,9 +58,14 @@ export default function TournamentActions({ tournament }: TournamentActionsProps
 
   async function handleDelete() {
     setDeleting(true)
-    const supabase = createClient()
-    await supabase.from('tournaments').delete().eq('id', tournament.id)
-    router.push('/dashboard')
+    const res = await fetch(`/api/tournaments/${tournament.id}`, { method: 'DELETE' })
+    if (res.ok) {
+      router.push('/dashboard')
+    } else {
+      const d = await res.json()
+      alert(d.error || 'Delete failed')
+      setDeleting(false)
+    }
   }
 
   return (

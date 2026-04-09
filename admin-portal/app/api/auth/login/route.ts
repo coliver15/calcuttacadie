@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
+import { setSessionCookies } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
   const contentType = request.headers.get('content-type') ?? ''
@@ -19,7 +21,6 @@ export async function POST(request: NextRequest) {
   const loginUrl   = new URL('/auth/login', request.url)
   loginUrl.searchParams.set('redirectTo', redirectTo)
 
-  // Call Supabase password auth endpoint directly
   const authRes = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'apikey': anonKey },
@@ -32,51 +33,36 @@ export async function POST(request: NextRequest) {
     return NextResponse.redirect(loginUrl, { status: 303 })
   }
 
-  const data          = await authRes.json()
-  const accessToken   = data.access_token
-  const refreshToken  = data.refresh_token
-  const expiresIn     = data.expires_in ?? 3600
-  const userEmail     = data.user?.email ?? email
-  const userId        = data.user?.id ?? ''
-
-  if (!accessToken) {
+  const data = await authRes.json()
+  if (!data.access_token) {
     loginUrl.searchParams.set('error', 'Login failed — no token returned')
     return NextResponse.redirect(loginUrl, { status: 303 })
   }
 
-  const isProduction = process.env.NODE_ENV === 'production'
-  const successUrl   = new URL(redirectTo, request.url)
-  const response     = NextResponse.redirect(successUrl, { status: 303 })
+  const successUrl = new URL(redirectTo, request.url)
+  const response   = NextResponse.redirect(successUrl, { status: 303 })
 
-  const cookieOpts = {
-    httpOnly: true,
-    secure:   isProduction,
-    sameSite: 'lax' as const,
-    path:     '/',
-    maxAge:   expiresIn,
-  }
-
-  // Our custom session cookie (read by server components + admin layout)
-  response.cookies.set('cc-session', JSON.stringify({
-    access_token:  accessToken,
-    refresh_token: refreshToken,
-    email:         userEmail,
-  }), cookieOpts)
-
-  // Also set the standard Supabase session cookie so browser-side
-  // createBrowserClient() has auth context for client component pages
+  // Set both session cookies on the redirect response
+  const expiresIn = data.expires_in ?? 3600
+  const expiresAt = Math.floor(Date.now() / 1000) + expiresIn
+  const base      = { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax' as const, path: '/', maxAge: expiresIn }
   const projectRef = 'oxjydvtghyazocuocvia'
+
+  response.cookies.set('cc-session', JSON.stringify({
+    access_token:  data.access_token,
+    refresh_token: data.refresh_token,
+    email:         data.user?.email ?? email,
+    expires_at:    expiresAt,
+  }), base)
+
   response.cookies.set(`sb-${projectRef}-auth-token`, JSON.stringify({
-    access_token:  accessToken,
-    refresh_token: refreshToken,
+    access_token:  data.access_token,
+    refresh_token: data.refresh_token,
     token_type:    'bearer',
     expires_in:    expiresIn,
-    expires_at:    Math.floor(Date.now() / 1000) + expiresIn,
+    expires_at:    expiresAt,
     user:          data.user,
-  }), {
-    ...cookieOpts,
-    httpOnly: false, // Must be readable by browser JS for createBrowserClient
-  })
+  }), { ...base, httpOnly: false })
 
   return response
 }

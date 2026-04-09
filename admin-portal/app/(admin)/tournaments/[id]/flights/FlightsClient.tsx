@@ -5,7 +5,6 @@ import Link from 'next/link'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/Modal'
-import { createClient } from '@/lib/supabase/client'
 import type { Flight, FlightPayoutTier, TournamentStatus } from '@/types/database'
 import { cn } from '@/lib/utils'
 
@@ -65,19 +64,14 @@ export default function FlightsClient({
     setAddingFlight(true)
     setAddFlightError(null)
 
-    const supabase = createClient()
-    const { data, error } = await supabase
-      .from('flights')
-      .insert({
-        tournament_id: tournamentId,
-        name: newFlightName.trim(),
-        display_order: flights.length + 1,
-      })
-      .select('*')
-      .single()
-
-    if (error) {
-      setAddFlightError(error.message)
+    const res = await fetch('/api/flights', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tournamentId, name: newFlightName.trim(), displayOrder: flights.length + 1 }),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      setAddFlightError(data.error || 'Failed to add flight')
     } else {
       setFlights((prev) => [...prev, data as Flight])
       setNewFlightName('')
@@ -87,10 +81,11 @@ export default function FlightsClient({
   }
 
   async function handleDeleteFlight(flight: Flight) {
-    const supabase = createClient()
-    await supabase.from('flights').delete().eq('id', flight.id)
-    setFlights((prev) => prev.filter((f) => f.id !== flight.id))
-    setPayoutTiers((prev) => prev.filter((t) => t.flight_id !== flight.id))
+    const res = await fetch(`/api/flights/${flight.id}`, { method: 'DELETE' })
+    if (res.ok) {
+      setFlights((prev) => prev.filter((f) => f.id !== flight.id))
+      setPayoutTiers((prev) => prev.filter((t) => t.flight_id !== flight.id))
+    }
   }
 
   function openPayoutEditor(flight: Flight) {
@@ -141,28 +136,21 @@ export default function FlightsClient({
     setSavingPayouts(true)
     setPayoutError(null)
 
-    const supabase = createClient()
-    // Delete existing tiers
-    await supabase.from('flight_payout_tiers').delete().eq('flight_id', editingFlightId)
-
-    // Insert new tiers
-    const { data, error } = await supabase
-      .from('flight_payout_tiers')
-      .insert(
-        payoutEntries.map((e) => ({
-          flight_id: editingFlightId,
-          place: e.place,
-          percentage: parseFloat(e.percentage),
-        }))
-      )
-      .select('*')
-
-    if (error) {
-      setPayoutError(error.message)
+    const res = await fetch(`/api/flights/${editingFlightId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        payoutTiers: payoutEntries.map((e) => ({ place: e.place, percentage: parseFloat(e.percentage) })),
+      }),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      setPayoutError(data.error || 'Failed to save payouts')
     } else {
+      const newTiers = (data.flight_payout_tiers ?? []) as FlightPayoutTier[]
       setPayoutTiers((prev) => [
         ...prev.filter((t) => t.flight_id !== editingFlightId),
-        ...(data as FlightPayoutTier[]),
+        ...newTiers,
       ])
       setEditingFlightId(null)
     }
