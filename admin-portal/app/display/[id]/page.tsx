@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 import type { Tournament, Team, Flight, AuctionSession, Bid } from '@/types/database'
 import DisplayClient from './DisplayClient'
 
@@ -8,7 +8,9 @@ interface Props {
 }
 
 export default async function DisplayPage({ params }: Props) {
-  const supabase = createClient()
+  // Display page is intentionally public (TV/projector use)
+  // Uses admin client to bypass RLS since the URL itself is the access control
+  const supabase = createAdminClient()
 
   const { data: tournament } = await supabase
     .from('tournaments')
