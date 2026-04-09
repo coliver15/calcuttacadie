@@ -182,7 +182,7 @@ export default function AuctionClient({
       .from('tournaments')
       .update({
         current_auction_session_id: newSession.id,
-        status: 'auction_open',
+        status: 'auction_live',
       })
       .eq('id', tournament.id)
 
@@ -309,7 +309,7 @@ export default function AuctionClient({
   }
 
   const isAuctionRunnable =
-    tournament.status !== 'results_final' &&
+    tournament.status !== 'complete' &&
     tournament.status !== 'draft'
 
   return (

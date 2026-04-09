@@ -12,17 +12,21 @@ interface TournamentActionsProps {
 }
 
 const STATUS_FLOW: Partial<Record<TournamentStatus, TournamentStatus>> = {
-  draft: 'published',
-  published: 'auction_open',
-  auction_open: 'auction_complete',
-  auction_complete: 'results_final',
+  draft:             'setup',
+  setup:             'ready',
+  ready:             'auction_live',
+  auction_live:      'auction_complete',
+  auction_complete:  'results_pending',
+  results_pending:   'complete',
 }
 
 const STATUS_BUTTON_LABEL: Partial<Record<TournamentStatus, string>> = {
-  draft: 'Publish Tournament',
-  published: 'Open Auction',
-  auction_open: 'Close Auction',
-  auction_complete: 'Finalize Results',
+  draft:             'Begin Setup',
+  setup:             'Mark Ready',
+  ready:             'Start Auction',
+  auction_live:      'Close Auction',
+  auction_complete:  'Enter Results',
+  results_pending:   'Finalize',
 }
 
 export default function TournamentActions({ tournament }: TournamentActionsProps) {

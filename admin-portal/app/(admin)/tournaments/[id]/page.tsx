@@ -109,7 +109,7 @@ export default async function TournamentDetailPage({ params }: Props) {
       href: `/tournaments/${params.id}/auction`,
       label: 'Live Auction',
       description:
-        t.status === 'auction_open'
+        t.status === 'auction_live'
           ? 'Auction in progress'
           : 'Start the auction',
       icon: (
@@ -118,13 +118,13 @@ export default async function TournamentDetailPage({ params }: Props) {
           <path d="M10 6v4l3 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
         </svg>
       ),
-      highlight: t.status === 'auction_open',
+      highlight: t.status === 'auction_live',
     },
     {
       href: `/tournaments/${params.id}/results`,
       label: 'Final Results',
       description:
-        t.status === 'results_final' ? 'Results finalized' : 'Enter placements',
+        t.status === 'complete' ? 'Results finalized' : 'Enter placements',
       icon: (
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
           <path d="M7 3H5a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V5a2 2 0 00-2-2h-2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />

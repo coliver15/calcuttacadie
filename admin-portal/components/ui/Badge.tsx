@@ -43,18 +43,22 @@ export function Badge({ className, variant = 'default', children, ...props }: Ba
 // Tournament-specific status badge
 const statusVariantMap: Record<TournamentStatus, BadgeVariant> = {
   draft: 'slate',
-  published: 'info',
-  auction_open: 'success',
+  setup: 'info',
+  ready: 'info',
+  auction_live: 'success',
   auction_complete: 'warning',
-  results_final: 'purple',
+  results_pending: 'warning',
+  complete: 'purple',
 }
 
 const statusLabelMap: Record<TournamentStatus, string> = {
   draft: 'Draft',
-  published: 'Published',
-  auction_open: 'Live Auction',
+  setup: 'Setup',
+  ready: 'Ready',
+  auction_live: 'Live Auction',
   auction_complete: 'Auction Complete',
-  results_final: 'Results Final',
+  results_pending: 'Results Pending',
+  complete: 'Complete',
 }
 
 interface TournamentStatusBadgeProps {
@@ -71,13 +75,13 @@ export function TournamentStatusBadge({
 
   return (
     <Badge variant={variant}>
-      {showDot && status === 'auction_open' && (
+      {showDot && status === 'auction_live' && (
         <span className="relative flex h-2 w-2">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary-400 opacity-75" />
           <span className="relative inline-flex h-2 w-2 rounded-full bg-primary-500" />
         </span>
       )}
-      {showDot && status !== 'auction_open' && (
+      {showDot && status !== 'auction_live' && (
         <span className="h-1.5 w-1.5 rounded-full bg-current opacity-70" />
       )}
       {label}

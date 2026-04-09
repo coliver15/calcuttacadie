@@ -72,11 +72,11 @@ export function getTournamentStatusLabel(
       return { label: 'Draft', color: 'slate' }
     case 'published':
       return { label: 'Published', color: 'blue' }
-    case 'auction_open':
+    case 'auction_live':
       return { label: 'Live Auction', color: 'green' }
     case 'auction_complete':
       return { label: 'Auction Complete', color: 'yellow' }
-    case 'results_final':
+    case 'complete':
       return { label: 'Results Final', color: 'purple' }
     default:
       return { label: status, color: 'slate' }

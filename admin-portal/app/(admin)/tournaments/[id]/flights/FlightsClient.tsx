@@ -43,9 +43,9 @@ export default function FlightsClient({
   const [payoutError, setPayoutError] = useState<string | null>(null)
 
   const isReadOnly =
-    tournamentStatus === 'auction_open' ||
+    tournamentStatus === 'auction_live' ||
     tournamentStatus === 'auction_complete' ||
-    tournamentStatus === 'results_final'
+    tournamentStatus === 'complete'
 
   function getTiers(flightId: string) {
     return payoutTiers
