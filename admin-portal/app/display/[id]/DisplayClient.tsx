@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import AuctionTimer from '@/components/auction/AuctionTimer'
 import { formatCents, formatHandicap } from '@/lib/utils'
@@ -35,14 +35,14 @@ export default function DisplayClient({
   const [connected, setConnected] = useState(false)
   const supabaseRef = useRef(createClient())
 
-  const teamMap = new Map(teams.map((t) => [t.id, t]))
-  const flightMap = new Map(flights.map((f) => [f.id, f]))
+  const teamMap   = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams])
+  const flightMap = useMemo(() => new Map(flights.map((f) => [f.id, f])), [flights])
 
-  const currentTeam = session?.team_id ? teamMap.get(session.team_id) ?? null : null
+  const currentTeam = useMemo(() => session?.team_id ? teamMap.get(session.team_id) ?? null : null, [session?.team_id, teamMap])
 
-  const soldTeams = teams.filter((t) => t.auction_status === 'sold')
-  const pendingCount = teams.filter((t) => t.auction_status === 'pending').length
-  const totalPot = soldTeams.reduce((s, t) => s + (t.final_sale_price_cents ?? 0), 0)
+  const soldTeams  = useMemo(() => teams.filter((t) => t.auction_status === 'sold'), [teams])
+  const pendingCount = useMemo(() => teams.filter((t) => t.auction_status === 'pending').length, [teams])
+  const totalPot     = useMemo(() => soldTeams.reduce((s, t) => s + (t.final_sale_price_cents ?? 0), 0), [soldTeams])
 
   const handleRealtimeEvent = useCallback(
     (event: RealtimeAuctionEvent) => {
@@ -188,7 +188,7 @@ export default function DisplayClient({
           >
             <span
               className={`h-2 w-2 rounded-full ${
-                connected ? 'bg-primary-400 animate-pulse' : 'bg-slate-600'
+                connected ? 'bg-primary-400 animate-pulse-green' : 'bg-slate-600'
               }`}
             />
             {connected ? 'Live' : 'Connecting…'}
