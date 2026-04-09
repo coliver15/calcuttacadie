@@ -1,18 +1,18 @@
+// Login page — plain HTML form POST to /api/auth/login
+// No JavaScript required for the auth flow. The route handler returns
+// a true HTTP 303 redirect with Set-Cookie headers, which the browser
+// handles natively before loading the next page.
+
 import { Suspense } from 'react'
 import Link from 'next/link'
-import { loginAction } from '@/app/auth/actions'
 
 interface Props {
-  searchParams: Promise<{ error?: string; redirectTo?: string }>
+  searchParams: { error?: string; redirectTo?: string }
 }
 
-async function LoginForm({ searchParams }: Props) {
-  const params = await searchParams
-  const error = params.error
-  const redirectTo = params.redirectTo || '/dashboard'
-
+function LoginForm({ error, redirectTo }: { error?: string; redirectTo: string }) {
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#020617] flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="text-4xl mb-3">⛳</div>
@@ -29,12 +29,14 @@ async function LoginForm({ searchParams }: Props) {
             </div>
           )}
 
-          <form action={loginAction} className="space-y-4">
-            {/* Pass redirectTo through the form */}
+          {/* Plain HTML form — browser handles POST + redirect + cookies natively */}
+          <form action="/api/auth/login" method="POST" className="space-y-4">
             <input type="hidden" name="redirectTo" value={redirectTo} />
 
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">Email</label>
+              <label className="block text-sm font-medium text-slate-300 mb-1.5">
+                Email
+              </label>
               <input
                 name="email"
                 type="email"
@@ -46,7 +48,9 @@ async function LoginForm({ searchParams }: Props) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">Password</label>
+              <label className="block text-sm font-medium text-slate-300 mb-1.5">
+                Password
+              </label>
               <input
                 name="password"
                 type="password"
@@ -67,7 +71,9 @@ async function LoginForm({ searchParams }: Props) {
 
           <p className="text-center text-slate-400 text-sm mt-6">
             Don&apos;t have an account?{' '}
-            <Link href="/auth/signup" className="text-green-400 hover:text-green-300">Create one</Link>
+            <Link href="/auth/signup" className="text-green-400 hover:text-green-300">
+              Create one
+            </Link>
           </p>
         </div>
       </div>
@@ -76,13 +82,18 @@ async function LoginForm({ searchParams }: Props) {
 }
 
 export default function LoginPage({ searchParams }: Props) {
+  const redirectTo = searchParams.redirectTo || '/dashboard'
+  const error = searchParams.error
+
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <div className="text-white">Loading...</div>
-      </div>
-    }>
-      <LoginForm searchParams={searchParams} />
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#020617] flex items-center justify-center">
+          <div className="text-white">Loading...</div>
+        </div>
+      }
+    >
+      <LoginForm error={error} redirectTo={redirectTo} />
     </Suspense>
   )
 }
