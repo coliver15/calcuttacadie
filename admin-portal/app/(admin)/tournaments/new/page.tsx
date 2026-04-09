@@ -121,7 +121,7 @@ export default function NewTournamentPage() {
       const { data: tournament, error: tournamentError } = await supabase
         .from('tournaments')
         .insert({
-          admin_id: user.id,
+          created_by: user.id,
           name: form.name.trim(),
           club_name: form.club_name.trim(),
           club_location: form.club_location.trim() || null,

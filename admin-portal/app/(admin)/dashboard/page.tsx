@@ -15,11 +15,18 @@ export default async function DashboardPage() {
   } = await supabase.auth.getUser()
 
   // Fetch tournaments where this admin is owner or co-admin
-  const { data: tournaments } = await supabase
-    .from('tournaments')
-    .select('*')
+  // via the tournament_admins junction table
+  const { data: adminTournaments } = await supabase
+    .from('tournament_admins')
+    .select('tournament_id, tournaments(*)')
     .eq('admin_id', user!.id)
-    .order('tournament_date', { ascending: false })
+
+  const tournaments = (adminTournaments ?? [])
+    .map((ta: any) => ta.tournaments)
+    .filter(Boolean)
+    .sort((a: any, b: any) =>
+      (b.tournament_date ?? '').localeCompare(a.tournament_date ?? '')
+    )
 
   // Fetch remaining tournament credits
   const { data: purchases } = await supabase
