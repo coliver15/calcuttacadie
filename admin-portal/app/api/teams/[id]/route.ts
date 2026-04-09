@@ -65,6 +65,24 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
+  // Prevent deleting a team that has already been auctioned
+  const { data: team } = await db
+    .from('teams')
+    .select('auction_status')
+    .eq('id', params.id)
+    .single()
+  
+  if (team?.auction_status === 'sold' || team?.auction_status === 'active') {
+    return NextResponse.json(
+      { error: 'Cannot delete a team that has already been bid on or sold.' },
+      { status: 409 }
+    )
+  }
+
+  // Delete the linked auction_session first (created automatically by trigger)
+  await db.from('auction_sessions').delete().eq('team_id', params.id)
+
+  // Now delete the team
   const { error } = await db.from('teams').delete().eq('id', params.id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true })
