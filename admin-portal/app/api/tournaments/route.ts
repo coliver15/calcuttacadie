@@ -2,23 +2,59 @@
 // the cc-session access token, so RLS correctly identifies the admin.
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { cookies } from 'next/headers'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 
 export async function POST(request: NextRequest) {
-  const supabase = createClient()
+  // Verify the user is authenticated via our cc-session cookie
+  const userClient = createClient()
+  const { data: { user }, error: userError } = await userClient.auth.getUser()
 
-  // Get authenticated user
-  const { data: { user }, error: userError } = await supabase.auth.getUser()
   if (userError || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // Fall back to reading directly from cc-session if getUser fails
+    const { cookies } = await import('next/headers')
+    const cookieStore = cookies()
+    const session = cookieStore.get('cc-session')
+    if (!session?.value) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    const parsed = JSON.parse(session.value)
+    if (!parsed?.email) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
   }
 
+  // Use service role client for all DB operations — bypasses RLS safely
+  // (we've already verified the user above)
+  const db = createAdminClient()
+
+  // Re-fetch user ID reliably from cc-session
+  const { cookies } = await import('next/headers')
+  const cookieStore = cookies()
+  const sessionCookie = cookieStore.get('cc-session')
+  if (!sessionCookie?.value) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  const session = JSON.parse(sessionCookie.value)
+  const accessToken = session.access_token
+
+  // Get user ID from Supabase using the access token directly
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!.trim()
+  const anonKey    = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!.trim()
+  const userRes    = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: { Authorization: `Bearer ${accessToken}`, apikey: anonKey },
+    cache: 'no-store',
+  })
+  if (!userRes.ok) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  const userInfo = await userRes.json()
+  const userId   = userInfo.id
+
   // Check available credits
-  const { data: purchases } = await supabase
+  const { data: purchases } = await db
     .from('tournament_purchases')
     .select('id, tournaments_remaining')
-    .eq('admin_id', user.id)
+    .eq('admin_id', userId)
     .eq('status', 'paid')
     .gt('tournaments_remaining', 0)
     .order('created_at', { ascending: true })
@@ -35,10 +71,10 @@ export async function POST(request: NextRequest) {
   const body = await request.json()
 
   // Create the tournament
-  const { data: tournament, error: tournamentError } = await supabase
+  const { data: tournament, error: tournamentError } = await db
     .from('tournaments')
     .insert({
-      created_by: user.id,
+      created_by: userId,
       name: body.name,
       club_name: body.club_name,
       club_location: body.club_location || null,
@@ -58,15 +94,15 @@ export async function POST(request: NextRequest) {
   }
 
   // Decrement the credit
-  await supabase
+  await db
     .from('tournament_purchases')
     .update({ tournaments_remaining: purchase.tournaments_remaining - 1 })
     .eq('id', purchase.id)
 
   // Add as tournament owner
-  await supabase
+  await db
     .from('tournament_admins')
-    .insert({ tournament_id: tournament.id, admin_id: user.id, role: 'owner' })
+    .insert({ tournament_id: tournament.id, admin_id: userId, role: 'owner' })
 
   return NextResponse.json({ id: tournament.id })
 }
