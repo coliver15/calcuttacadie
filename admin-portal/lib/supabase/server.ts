@@ -1,51 +1,53 @@
-import { createServerClient } from '@supabase/ssr'
+// Server-side Supabase client.
+// Reads the access token from our cc-session cookie and injects it
+// as an Authorization header so auth.getUser() and RLS both work
+// without relying on @supabase/ssr's session cookie management.
+
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 
 export function createClient() {
   const cookieStore = cookies()
+  let accessToken: string | undefined
 
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  try {
+    const sessionCookie = cookieStore.get('cc-session')
+    if (sessionCookie?.value) {
+      const session = JSON.parse(sessionCookie.value)
+      accessToken = session.access_token
+    }
+  } catch {
+    // No session cookie — unauthenticated request
+  }
+
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!.trim(),
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!.trim(),
     {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-        setAll(cookiesToSet: { name: string; value: string; options: Record<string, unknown> }[]) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
-          } catch {
-            // setAll called from a Server Component — can be ignored if middleware refreshes sessions
-          }
-        },
+      global: {
+        headers: accessToken
+          ? { Authorization: `Bearer ${accessToken}` }
+          : {},
+      },
+      auth: {
+        persistSession:     false,
+        autoRefreshToken:   false,
+        detectSessionInUrl: false,
       },
     }
   )
 }
 
+// Admin client using service role (bypasses RLS — use carefully)
 export function createAdminClient() {
-  const cookieStore = cookies()
-
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!.trim(),
+    process.env.SUPABASE_SERVICE_ROLE_KEY!.trim(),
     {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-        setAll(cookiesToSet: { name: string; value: string; options: Record<string, unknown> }[]) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
-          } catch {
-            // ignored in Server Components
-          }
-        },
+      auth: {
+        persistSession:     false,
+        autoRefreshToken:   false,
+        detectSessionInUrl: false,
       },
     }
   )
