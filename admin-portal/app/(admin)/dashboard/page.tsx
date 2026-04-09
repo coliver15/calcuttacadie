@@ -26,7 +26,7 @@ export default async function DashboardPage() {
     .from('tournament_purchases')
     .select('*')
     .eq('admin_id', user!.id)
-    .eq('status', 'completed')
+    .eq('status', 'paid')
     .gt('tournaments_remaining', 0)
     .order('created_at', { ascending: true })
 
