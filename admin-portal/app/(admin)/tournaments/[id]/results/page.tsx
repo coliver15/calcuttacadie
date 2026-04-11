@@ -4,9 +4,6 @@ import type { Tournament, Team, Flight, FlightPayoutTier, Ownership } from '@/ty
 import ResultsClient from './ResultsClient'
 import type { Metadata } from 'next'
 
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
-
 interface Props {
   params: { id: string }
 }

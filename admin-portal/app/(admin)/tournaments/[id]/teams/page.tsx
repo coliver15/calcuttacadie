@@ -4,9 +4,6 @@ import type { Flight, Team } from '@/types/database'
 import TeamsClient from './TeamsClient'
 import type { Metadata } from 'next'
 
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
-
 interface Props {
   params: { id: string }
 }

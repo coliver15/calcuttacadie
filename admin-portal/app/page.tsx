@@ -2,9 +2,6 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
-
 export default async function LandingPage() {
   // Redirect authenticated users to dashboard
   const supabase = createClient()

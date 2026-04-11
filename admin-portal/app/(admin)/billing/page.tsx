@@ -4,9 +4,6 @@ import BillingClient from './BillingClient'
 import type { TournamentPurchase } from '@/types/database'
 import type { Metadata } from 'next'
 
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
-
 export const metadata: Metadata = { title: 'Billing' }
 
 export default async function BillingPage() {

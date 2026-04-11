@@ -2,10 +2,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 
-// CRITICAL: disable Next.js caching — display must always show live data
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
-
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const db = createAdminClient()
   const tournamentId = params.id
@@ -35,8 +31,5 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     session = data
   }
 
-  return NextResponse.json(
-    { teams: teams ?? [], session },
-    { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0' } }
-  )
+  return NextResponse.json({ teams: teams ?? [], session })
 }
