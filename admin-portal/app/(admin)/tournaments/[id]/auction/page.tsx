@@ -4,6 +4,9 @@ import type { Tournament, Team, Flight, AuctionSession, Bid } from '@/types/data
 import AuctionClient from './AuctionClient'
 import type { Metadata } from 'next'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 interface Props {
   params: { id: string }
 }

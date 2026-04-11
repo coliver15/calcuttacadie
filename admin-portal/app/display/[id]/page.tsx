@@ -3,6 +3,10 @@ import { createAdminClient } from '@/lib/supabase/server'
 import type { Tournament, Team, Flight, AuctionSession, Bid } from '@/types/database'
 import DisplayClient from './DisplayClient'
 
+// CRITICAL: disable Next.js caching — display must always show live data
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 interface Props {
   params: { id: string }
 }

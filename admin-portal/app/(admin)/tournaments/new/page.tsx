@@ -8,6 +8,9 @@ import Input, { Select } from '@/components/ui/Input'
 import type { AuctionOrderType } from '@/types/database'
 import type { Metadata } from 'next'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 const AUCTION_ORDER_OPTIONS = [
   { value: 'random', label: 'Random order' },
   { value: 'manual', label: 'Manual (set order per team)' },

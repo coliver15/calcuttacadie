@@ -4,6 +4,9 @@ import type { Flight, FlightPayoutTier } from '@/types/database'
 import FlightsClient from './FlightsClient'
 import type { Metadata } from 'next'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 interface Props {
   params: { id: string }
 }

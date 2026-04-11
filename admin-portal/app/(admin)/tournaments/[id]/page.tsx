@@ -8,6 +8,9 @@ import type { Tournament, Flight, Team, TournamentAdmin } from '@/types/database
 import type { Metadata } from 'next'
 import TournamentActions from './TournamentActions'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 interface Props {
   params: { id: string }
 }
