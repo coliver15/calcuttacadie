@@ -28,6 +28,9 @@ export function createClient() {
         headers: accessToken
           ? { Authorization: `Bearer ${accessToken}` }
           : {},
+        // Bypass Next.js fetch() Data Cache for all Supabase queries
+        fetch: (url: any, opts: any = {}) =>
+          fetch(url, { ...opts, cache: 'no-store' as RequestCache }),
       },
       auth: {
         persistSession:     false,
@@ -48,6 +51,13 @@ export function createAdminClient() {
         persistSession:     false,
         autoRefreshToken:   false,
         detectSessionInUrl: false,
+      },
+      // CRITICAL: bypass Next.js fetch() Data Cache.
+      // Next 14 caches all fetch() calls by default, including Supabase REST queries.
+      // Without this, the very first query result gets cached and never refreshes.
+      global: {
+        fetch: (url: any, opts: any = {}) =>
+          fetch(url, { ...opts, cache: 'no-store' as RequestCache }),
       },
     }
   )
