@@ -71,13 +71,24 @@ export default function AuctionClient({
     const channel = supabase.channel(`auction:${tournament.id}`)
     channelRef.current = channel
 
-    channel
-      .on('broadcast', { event: '*' }, ({ event, payload }) => {
-        handleRealtimeEvent({ type: event, ...payload } as RealtimeAuctionEvent)
+    const events = [
+      'bid:placed',
+      'bid:placed_extended',
+      'auction:team_started',
+      'auction:team_sold',
+      'auction:team_passed',
+      'auction:completed',
+    ]
+    events.forEach((evt) => {
+      channel.on('broadcast', { event: evt }, (msg) => {
+        handleRealtimeEvent({ type: evt, ...msg.payload } as RealtimeAuctionEvent)
       })
-      .subscribe((status) => {
-        setConnected(status === 'SUBSCRIBED')
-      })
+    })
+
+    channel.subscribe((status) => {
+      console.log('[Auction] Realtime status:', status)
+      setConnected(status === 'SUBSCRIBED')
+    })
 
     return () => {
       supabase.removeChannel(channel)

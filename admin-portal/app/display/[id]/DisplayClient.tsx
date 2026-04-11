@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import AuctionTimer from '@/components/auction/AuctionTimer'
 import { formatCents, formatHandicap } from '@/lib/utils'
 import type {
@@ -13,6 +13,16 @@ import type {
   BidWithTeam,
   RealtimeAuctionEvent,
 } from '@/types/database'
+
+// Direct Supabase client for Realtime — bypasses @supabase/ssr cookie handling
+// which can interfere with WebSocket connections on public (no-auth) pages
+function createRealtimeClient() {
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { realtime: { params: { eventsPerSecond: 20 } } }
+  )
+}
 
 interface DisplayClientProps {
   tournament: Tournament
@@ -33,7 +43,7 @@ export default function DisplayClient({
   const [session, setSession] = useState<AuctionSession | null>(initialSession)
   const [bids, setBids] = useState<BidWithTeam[]>(initialBids as BidWithTeam[])
   const [connected, setConnected] = useState(false)
-  const supabaseRef = useRef(createClient())
+  const supabaseRef = useRef(createRealtimeClient())
 
   const teamMap   = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams])
   const flightMap = useMemo(() => new Map(flights.map((f) => [f.id, f])), [flights])
@@ -122,24 +132,37 @@ export default function DisplayClient({
     [teamMap]
   )
 
+  // Subscribe to each broadcast event explicitly (wildcard can be unreliable)
   useEffect(() => {
     const supabase = supabaseRef.current
     const channel = supabase.channel(`auction:${tournament.id}`)
 
-    channel
-      .on('broadcast', { event: '*' }, ({ event, payload }) => {
-        handleRealtimeEvent({ type: event, ...payload } as RealtimeAuctionEvent)
+    const events = [
+      'bid:placed',
+      'bid:placed_extended',
+      'auction:team_started',
+      'auction:team_sold',
+      'auction:team_passed',
+      'auction:completed',
+    ]
+
+    events.forEach((evt) => {
+      channel.on('broadcast', { event: evt }, (msg) => {
+        handleRealtimeEvent({ type: evt, ...msg.payload } as RealtimeAuctionEvent)
       })
-      .subscribe((status) => {
-        setConnected(status === 'SUBSCRIBED')
-      })
+    })
+
+    channel.subscribe((status) => {
+      console.log('[Display] Realtime status:', status)
+      setConnected(status === 'SUBSCRIBED')
+    })
 
     return () => {
       supabase.removeChannel(channel)
     }
   }, [tournament.id, handleRealtimeEvent])
 
-  // Polling fallback — re-fetch state every 8s to catch missed broadcasts
+  // Polling fallback — re-fetch state every 5s to stay in sync
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
@@ -149,7 +172,7 @@ export default function DisplayClient({
         if (data.teams) setTeams(data.teams)
         if (data.session !== undefined) setSession(data.session)
       } catch {}
-    }, 8000)
+    }, 5000)
     return () => clearInterval(interval)
   }, [tournament.id])
 
