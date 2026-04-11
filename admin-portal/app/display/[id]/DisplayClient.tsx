@@ -139,6 +139,20 @@ export default function DisplayClient({
     }
   }, [tournament.id, handleRealtimeEvent])
 
+  // Polling fallback — re-fetch state every 8s to catch missed broadcasts
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/display/${tournament.id}`)
+        if (!res.ok) return
+        const data = await res.json()
+        if (data.teams) setTeams(data.teams)
+        if (data.session !== undefined) setSession(data.session)
+      } catch {}
+    }, 8000)
+    return () => clearInterval(interval)
+  }, [tournament.id])
+
   const winningTeam = session?.winning_bidder_team_id
     ? teamMap.get(session.winning_bidder_team_id)
     : null

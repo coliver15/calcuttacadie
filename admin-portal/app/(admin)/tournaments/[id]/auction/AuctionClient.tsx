@@ -52,6 +52,7 @@ export default function AuctionClient({
   }
 
   const supabaseRef = useRef(createClient())
+  const channelRef = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null)
 
   const flightMap = new Map(flights.map((f) => [f.id, f]))
   const teamMap = new Map(teams.map((t) => [t.id, t]))
@@ -64,10 +65,11 @@ export default function AuctionClient({
   const soldTeams = teams.filter((t) => t.auction_status === 'sold')
   const passedTeams = teams.filter((t) => t.auction_status === 'passed')
 
-  // Subscribe to Supabase Realtime
+  // Subscribe to Supabase Realtime — store channel in ref for broadcasting
   useEffect(() => {
     const supabase = supabaseRef.current
     const channel = supabase.channel(`auction:${tournament.id}`)
+    channelRef.current = channel
 
     channel
       .on('broadcast', { event: '*' }, ({ event, payload }) => {
@@ -79,6 +81,7 @@ export default function AuctionClient({
 
     return () => {
       supabase.removeChannel(channel)
+      channelRef.current = null
     }
   }, [tournament.id])
 
@@ -160,14 +163,8 @@ export default function AuctionClient({
 
   // Admin action: start bidding on a team
   async function handleStartBidding(openingBidCents: number) {
-    const supabase = supabaseRef.current
-
-    // Find the next pending team
-    const nextTeam =
-      currentTeam && session?.status !== 'active'
-        ? currentTeam
-        : pendingTeams[0]
-
+    // Always pick the first pending team — never re-auction a sold/passed team
+    const nextTeam = pendingTeams[0]
     if (!nextTeam) throw new Error('No teams available to auction')
 
     // Create auction session via server API
@@ -185,83 +182,98 @@ export default function AuctionClient({
     )
     setBids([])
 
-    // Broadcast to display clients
-    const channel = supabase.channel(`auction:${tournament.id}`)
-    await channel.send({
-      type: 'broadcast',
-      event: 'auction:team_started',
-      payload: {
-        auction_session: newSession,
-        team: nextTeam,
-      },
-    })
+    // Broadcast to display clients via the subscribed channel
+    const channel = channelRef.current
+    if (channel) {
+      await channel.send({
+        type: 'broadcast',
+        event: 'auction:team_started',
+        payload: {
+          auction_session: newSession,
+          team: nextTeam,
+        },
+      })
+    }
   }
 
-  // Admin action: close current bidding and advance
+  // Admin action: close current bidding and advance to next team
   async function handleCloseAndAdvance() {
     if (!session || !currentTeam) throw new Error('No active session')
 
-    const supabase = supabaseRef.current
-    const soldAt = new Date().toISOString()
+    const soldTeamId = currentTeam.id
+    const salePriceCents = session.current_bid_cents
+    const winnerTeamId = session.winning_bidder_team_id
 
     // Record sale via server API
     await auctionApi('record_sale', {
       sessionId: session.id,
-      teamId: currentTeam.id,
-      salePriceCents: session.current_bid_cents,
-      winnerTeamId: session.winning_bidder_team_id,
+      teamId: soldTeamId,
+      salePriceCents,
+      winnerTeamId,
     })
 
+    // Update local teams state — mark as sold
     setTeams((prev) =>
       prev.map((t) =>
-        t.id === currentTeam.id
+        t.id === soldTeamId
           ? {
               ...t,
               auction_status: 'sold' as const,
-              final_sale_price_cents: session.current_bid_cents,
+              final_sale_price_cents: salePriceCents,
             }
           : t
       )
     )
-    setSession({ ...session, status: 'sold', sold_at: soldAt })
 
-    // Broadcast
-    const channel = supabase.channel(`auction:${tournament.id}`)
-    await channel.send({
-      type: 'broadcast',
-      event: 'auction:team_sold',
-      payload: {
-        auction_session: session,
-        team: currentTeam,
-        winning_bidder_team_id: session.winning_bidder_team_id,
-        final_amount_cents: session.current_bid_cents,
-      },
-    })
+    // Broadcast sold event to display
+    const channel = channelRef.current
+    if (channel) {
+      await channel.send({
+        type: 'broadcast',
+        event: 'auction:team_sold',
+        payload: {
+          auction_session: { ...session, status: 'sold' },
+          team: currentTeam,
+          winning_bidder_team_id: winnerTeamId,
+          final_amount_cents: salePriceCents,
+        },
+      })
+    }
+
+    // Clear session so currentTeam resets — then auto-advance
+    setSession(null)
+    setBids([])
   }
 
   // Admin action: pass team (no sale)
   async function handlePassTeam() {
     if (!session || !currentTeam) throw new Error('No active session')
 
-    const supabase = supabaseRef.current
+    const passedTeamId = currentTeam.id
 
-    await auctionApi('record_pass', { sessionId: session.id, teamId: currentTeam.id })
+    await auctionApi('record_pass', { sessionId: session.id, teamId: passedTeamId })
 
     setTeams((prev) =>
       prev.map((t) =>
-        t.id === currentTeam.id
+        t.id === passedTeamId
           ? { ...t, auction_status: 'passed' as const }
           : t
       )
     )
-    setSession({ ...session, status: 'passed' })
 
-    const channel = supabase.channel(`auction:${tournament.id}`)
-    await channel.send({
-      type: 'broadcast',
-      event: 'auction:team_passed',
-      payload: { auction_session: session, team: currentTeam },
-    })
+    // Broadcast pass event to display
+    const channel = channelRef.current
+    if (channel) {
+      await channel.send({
+        type: 'broadcast',
+        event: 'auction:team_passed',
+        payload: { auction_session: { ...session, status: 'passed' }, team: currentTeam },
+      })
+    }
+
+    // Clear session so currentTeam resets — ready for next team
+    setSession(null)
+    setBids([])
   }
 
   const isAuctionRunnable =
