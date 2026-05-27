@@ -51,11 +51,16 @@ const config: Config = {
           '0%, 100%': { boxShadow: '0 0 0 0 rgba(22, 163, 74, 0)' },
           '50%': { boxShadow: '0 0 0 6px rgba(22, 163, 74, 0.2)' },
         },
+        'slide-up': {
+          from: { transform: 'translateY(100%)' },
+          to: { transform: 'translateY(0)' },
+        },
       },
       animation: {
         'slide-in': 'slide-in 0.2s ease-out',
         'fade-in': 'fade-in 0.15s ease-out',
         'pulse-green': 'pulse-green 2s infinite',
+        'slide-up': 'slide-up 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
       },
     },
   },

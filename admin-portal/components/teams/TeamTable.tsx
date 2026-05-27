@@ -15,6 +15,7 @@ interface TeamTableProps {
   flights: Flight[]
   onEditTeam?: (team: Team) => void
   onDeleteTeam?: (team: Team) => void
+  onShowQr?: (team: Team) => void
   showAccessCodes?: boolean
   readOnly?: boolean
 }
@@ -26,6 +27,7 @@ export default function TeamTable({
   flights,
   onEditTeam,
   onDeleteTeam,
+  onShowQr,
   showAccessCodes = true,
   readOnly = false,
 }: TeamTableProps) {
@@ -199,6 +201,16 @@ export default function TeamTable({
                         >
                           {copiedCode === team.access_code ? '✓' : '⧉'}
                         </button>
+                        {onShowQr && (
+                          <button
+                            onClick={() => onShowQr(team)}
+                            className="text-slate-500 hover:text-primary-300 transition-colors text-xs font-semibold uppercase tracking-wider"
+                            title="Show QR code"
+                            aria-label="Show QR code"
+                          >
+                            QR
+                          </button>
+                        )}
                       </div>
                     </td>
                   )}

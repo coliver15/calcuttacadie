@@ -8,6 +8,7 @@ import { Modal, ModalHeader, ModalBody } from '@/components/ui/Modal'
 import Input, { Select } from '@/components/ui/Input'
 import TeamTable from '@/components/teams/TeamTable'
 import AddTeamForm from '@/components/teams/AddTeamForm'
+import QrCodeModal from '@/components/teams/QrCodeModal'
 import type { Flight, Team, TournamentStatus } from '@/types/database'
 
 interface TeamsClientProps {
@@ -33,6 +34,7 @@ export default function TeamsClient({
   const [deleting, setDeleting]         = useState(false)
   const [editSaving, setEditSaving]     = useState(false)
   const [editError, setEditError]       = useState<string | null>(null)
+  const [qrTeam, setQrTeam]             = useState<Team | null>(null)
 
   // Edit form state
   const [editForm, setEditForm] = useState({
@@ -141,11 +143,22 @@ export default function TeamsClient({
             {flights.length} flight{flights.length !== 1 ? 's' : ''}
           </p>
         </div>
-        {!isReadOnly && (
-          <Button variant="primary" onClick={() => setShowAddModal(true)}>
-            + Add Team
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {teams.length > 0 && (
+            <Link
+              href={`/tournaments/${tournamentId}/teams/print-qr`}
+              target="_blank"
+              rel="noopener"
+            >
+              <Button variant="ghost">Print All QR Codes</Button>
+            </Link>
+          )}
+          {!isReadOnly && (
+            <Button variant="primary" onClick={() => setShowAddModal(true)}>
+              + Add Team
+            </Button>
+          )}
+        </div>
       </div>
 
       {flights.length === 0 && !isReadOnly && (
@@ -163,8 +176,15 @@ export default function TeamsClient({
         flights={flights}
         onEditTeam={isReadOnly ? undefined : openEdit}
         onDeleteTeam={isReadOnly ? undefined : (t) => setDeleteTeam(t)}
+        onShowQr={(t) => setQrTeam(t)}
         showAccessCodes
         readOnly={isReadOnly}
+      />
+
+      <QrCodeModal
+        open={qrTeam !== null}
+        onClose={() => setQrTeam(null)}
+        team={qrTeam}
       />
 
       {/* Add team modal */}
